@@ -1,0 +1,17 @@
+$me = ([Security.Principal.WindowsIdentity]::GetCurrent()).Groups.Value +
+      ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+$broad = 'S-1-5-11','S-1-5-32-545','S-1-5-4','S-1-1-0'   # AuthUsers, Users, Interactive, Everyone
+$targets = $me + $broad
+foreach ($s in (Get-Service | Select -Expand Name)) {
+  $sddl = (& sc.exe sdshow $s) -join ''
+  if ($sddl -notmatch '^D:') { continue }
+  try { $sd = New-Object Security.AccessControl.RawSecurityDescriptor($sddl) } catch { continue }
+  foreach ($ace in $sd.DiscretionaryAcl) {
+    $sid = $ace.SecurityIdentifier.Value
+    $m   = $ace.AccessMask
+    # 0x0002 CHANGE_CONFIG, 0x40000 WRITE_DAC, 0x80000 WRITE_OWNER, 0x10000000 GENERIC_ALL
+    if (($targets -contains $sid) -and ($m -band 0x000C0002 -or $m -band 0x10000000)) {
+      "{0,-30} grants mask 0x{1:X} to {2}" -f $s,$m,$sid
+    }
+  }
+}
