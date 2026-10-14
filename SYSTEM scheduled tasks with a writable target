@@ -1,0 +1,1 @@
+Get-ScheduledTask | ?{$_.Principal.UserId -match 'SYSTEM|Administrator'} | %{ $p=$_.Actions.Execute; if($p){ $f=[Environment]::ExpandEnvironmentVariables($p).Trim('"'); if(Test-Path $f){ icacls $f 2>$null | ?{ $_ -match ':\(.*(F|M|W)\)' -and $_ -match '(^|\s)(Users|Authenticated Users|Everyone|BUILTIN\\Users)\S*:' } | %{ "$($_.TaskName) :: $f :: $($_.Trim())" } } } }
